@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rosas de Saron - Lírio dos Vales</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/88d2e5a43a.js" crossorigin="anonymous"></script>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #fdeff9, #ec38bc, #7303c0);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: start;
+      min-height: 100vh;
+    }
+
+    .app-container {
+      background: #fff0f5;
+      margin: 30px;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #d81b60;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      color: #ad1457;
+      margin-top: 30px;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #ec407a;
+    }
+
+    button {
+      background-color: #d81b60;
+      color: white;
+      border: none;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #ad1457;
+    }
+
+    .logout-btn {
+      background-color: #f06292;
+    }
+
+    .logout-btn:hover {
+      background-color: #e91e63;
+    }
+
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fce4ec;
+      padding: 10px 15px;
+      margin: 5px 0;
+      border-radius: 8px;
+    }
+
+    .item span {
+      font-size: 15px;
+      color: #444;
+    }
+
+    .item i {
+      cursor: pointer;
+      color: #c2185b;
+      font-size: 18px;
+      margin-left: 10px;
+    }
+
+    .edit-section {
+      background: #f8bbd0;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .inline-icon {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container" id="app">Carregando...</div>
+
+  <script>
+    const API_KEY = "$2a$10$yx31.JdGRt0H2YA/uBitDuiPeJwoiJQDdeQuoAd1n9XqVEWgpw3m2";
+    const BIN_ID = "67f3b8308960c979a57fd3ea";
+    const BASE_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    let app = document.getElementById("app");
+    let currentUser = null;
+    let users = {};
+    let hinos = [];
+
+    async function fetchData() {
+      const res = await fetch(BASE_URL, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const data = await res.json();
+      const oldUsers = data.record.users;
+      users = {};
+      for (let user in oldUsers) {
+        if (typeof oldUsers[user] === 'string') {
+          users[user] = { senha: oldUsers[user], admin: user === 'Elaine' };
+        } else {
+          users[user] = oldUsers[user];
+        }
+      }
+      hinos = data.record.hinos || [];
+    }
+
+    async function saveData() {
+      const data = { users, hinos };
+      await fetch(BASE_URL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': API_KEY
+        },
+        body: JSON.stringify(data)
+      });
+    }
+
+    function isAdmin() {
+      return users[currentUser]?.admin === true;
+    }
+
+    function renderLogin() {
+      app.innerHTML = `
+        <h2>🌸 Rosas de Saron</h2>
+        <input id="username" placeholder="Usuário">
+        <input id="password" type="password" placeholder="Senha">
+        <button onclick="login()">Entrar</button>
+      `;
+    }
+
+    function login() {
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value.trim();
+      if (users[user] && users[user].senha === pass) {
+        currentUser = user;
+        renderMain();
+      } else {
+        alert("Usuário ou senha inválidos.");
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      renderLogin();
+    }
+
+    function renderMain() {
+      let userSection = "";
+
+      if (isAdmin()) {
+        userSection += `
+          <h3>Gerenciar Usuários</h3>
+          <input id="newUser" placeholder="Novo usuário">
+          <input id="newPass" placeholder="Senha">
+          <button onclick="createUser()">Cadastrar</button>
+          <input id="searchUser" placeholder="Buscar usuário..." oninput="renderUserList()">
+          <div id="userList"></div>
+        `;
+      }
+
+      userSection += `
+        <h3>Editar Perfil</h3>
+        <div class="edit-section">
+          <input id="editName" placeholder="Novo nome de usuário">
+          <input id="editPass" placeholder="Nova senha">
+          <button onclick="updateUser()">Salvar alterações</button>
+        </div>
+      `;
+
+      app.innerHTML = `
+        <h2>Olá, ${currentUser} 🌷</h2>
+        ${userSection}
+        <h3>Lista de Hinos</h3>
+        <input id="hinoInput" placeholder="Novo hino...">
+        <button onclick="addHino()">Adicionar Hino</button>
+        <input id="searchHino" placeholder="Buscar hino..." oninput="renderHinoList()">
+        <div id="hinoList"></div>
+        <button class="logout-btn" onclick="logout()">Sair</button>
+      `;
+
+      renderUserList();
+      renderHinoList();
+    }
+
+    function createUser() {
+      const user = document.getElementById("newUser").value.trim();
+      const pass = document.getElementById("newPass").value.trim();
+      if (!user || !pass) return alert("Preencha todos os campos!");
+      if (users[user]) return alert("Usuário já existe.");
+      users[user] = { senha: pass, admin: false };
+      saveData();
+      alert("Usuário criado com sucesso!");
+      renderUserList();
+    }
+
+    function renderUserList() {
+      const query = document.getElementById("searchUser")?.value?.toLowerCase() || "";
+      let html = "";
+      Object.keys(users).forEach(user => {
+        if (user.toLowerCase().includes(query)) {
+          html += `
+            <div class="item">
+              <span>${user}</span>
+              ${isAdmin() && user !== currentUser && !users[user].admin ? `<i class="fas fa-trash-alt" onclick="deleteUser('${user}')" title="Excluir usuário"></i>` : ""}
+            </div>
+          `;
+        }
+      });
+      const list = document.getElementById("userList");
+      if (list) list.innerHTML = html;
+    }
+
+    function deleteUser(user) {
+      if (confirm(`Tem certeza que deseja excluir o usuário "${user}"?`)) {
+        delete users[user];
+        saveData();
+        alert(`Usuário "${user}" excluído.`);
+        renderUserList();
+      }
+    }
+
+    function addHino() {
+      const nome = document.getElementById("hinoInput").value.trim();
+      if (nome) {
+        hinos.push({ nome, autor: currentUser });
+        saveData();
+        document.getElementById("hinoInput").value = "";
+        renderHinoList();
+      }
+    }
+
+    function renderHinoList() {
+      const query = document.getElementById("searchHino")?.value?.toLowerCase() || "";
+      let html = "";
+
+      const sortedHinos = [...hinos].sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' })
+      );
+
+      sortedHinos.forEach((hino, index) => {
+        if (hino.nome.toLowerCase().includes(query)) {
+          html += `
+            <div class="item">
+              <div class="inline-icon">
+                <span>${hino.nome} (por ${hino.autor})</span>
+              </div>
+              <i class="fas fa-trash-alt" onclick="deleteHino(${index})" title="Excluir hino"></i>
+            </div>
+          `;
+        }
+      });
+
+      document.getElementById("hinoList").innerHTML = html;
+    }
+
+    function deleteHino(index) {
+      if (confirm("Tem certeza que deseja excluir este hino?")) {
+        hinos.splice(index, 1);
+        saveData();
+        alert("Hino excluído.");
+        renderHinoList();
+      }
+    }
+
+    function updateUser() {
+      const newName = document.getElementById("editName").value.trim();
+      const newPass = document.getElementById("editPass").value.trim();
+      if (!newName || !newPass) return alert("Preencha todos os campos.");
+      if (users[newName] && newName !== currentUser) return alert("Este nome já está em uso.");
+      const adminStatus = users[currentUser].admin;
+      delete users[currentUser];
+      users[newName] = { senha: newPass, admin: adminStatus };
+      currentUser = newName;
+      saveData();
+      alert("Dados atualizados com sucesso.");
+      renderMain();
+    }
+
+    fetchData().then(() => renderLogin());
+  </script>
+</body>
+</html>
